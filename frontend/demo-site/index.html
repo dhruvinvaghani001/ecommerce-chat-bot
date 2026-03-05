@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Luxury Properties Dubai - Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #faf8f5;
+      color: #1a1a2e;
+    }
+
+    nav {
+      background: #fff;
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: #e8734a;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: #555;
+      font-weight: 500;
+      font-size: 14px;
+      transition: color 0.15s;
+    }
+
+    .nav-links a:hover { color: #e8734a; }
+
+    .hero {
+      background: linear-gradient(135deg, #e8734a 0%, #d4623b 100%);
+      color: white;
+      padding: 80px 40px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .hero p {
+      font-size: 18px;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto 32px;
+    }
+
+    .hero-cta {
+      display: inline-block;
+      background: white;
+      color: #e8734a;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s;
+    }
+
+    .hero-cta:hover { transform: translateY(-2px); }
+
+    .section {
+      padding: 60px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .section p.subtitle {
+      color: #888;
+      margin-bottom: 32px;
+    }
+
+    .property-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .property-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .property-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    }
+
+    .property-card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+
+    .property-card .card-body {
+      padding: 16px;
+    }
+
+    .property-card .badge {
+      display: inline-block;
+      background: #fff5ee;
+      color: #e8734a;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .property-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .property-card .location {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .property-card .price {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e8734a;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 24px;
+      margin-top: 40px;
+    }
+
+    .feature-card {
+      background: white;
+      padding: 32px 24px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+
+    .feature-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    footer {
+      background: #1a1a2e;
+      color: rgba(255,255,255,0.7);
+      padding: 40px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .chat-badge {
+      position: fixed;
+      bottom: 100px;
+      right: 24px;
+      background: #1a1a2e;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      pointer-events: none;
+      animation: pulse 2s ease-in-out infinite;
+      z-index: 99997;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">LuxuryProperties</div>
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Buy</a></li>
+      <li><a href="#">Rent</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+  </nav>
+
+  <div class="hero">
+    <h1>Find Your Dream Home in Dubai</h1>
+    <p>Discover luxury villas, apartments, and penthouses across Dubai's most prestigious locations.</p>
+    <a href="#" class="hero-cta">Explore Properties</a>
+  </div>
+
+  <div class="section">
+    <h2>Featured Properties</h2>
+    <p class="subtitle">Hand-picked luxury properties for discerning buyers</p>
+    <div class="property-grid">
+      <div class="property-card">
+        <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=200&fit=crop" alt="Villa">
+        <div class="card-body">
+          <span class="badge">Villa</span>
+          <h3>Serge33 Luxury Villa</h3>
+          <div class="location">Dubai Marina</div>
+          <div class="price">AED 2,939.87</div>
+        </div>
+      </div>
+      <div class="property-card">
+        <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=200&fit=crop" alt="Villa">
+        <div class="card-body">
+          <span class="badge">Villa</span>
+          <h3>Close to Souk Madinat</h3>
+          <div class="location">Jumeirah</div>
+          <div class="price">AED 3,300,000</div>
+        </div>
+      </div>
+      <div class="property-card">
+        <img src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&h=200&fit=crop" alt="Villa">
+        <div class="card-body">
+          <span class="badge">Villa</span>
+          <h3>Extended | Opposite Park</h3>
+          <div class="location">Arabian Ranches</div>
+          <div class="price">AED 3,600,000</div>
+        </div>
+      </div>
+      <div class="property-card">
+        <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=200&fit=crop" alt="Penthouse">
+        <div class="card-body">
+          <span class="badge">Penthouse</span>
+          <h3>Palm Jumeirah Penthouse</h3>
+          <div class="location">Palm Jumeirah</div>
+          <div class="price">AED 20,000,000</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Why Choose Us</h2>
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F3E0;</div>
+        <h3>Premium Properties</h3>
+        <p>Curated selection of Dubai's finest real estate from trusted developers.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F916;</div>
+        <h3>AI-Powered Search</h3>
+        <p>Our intelligent chatbot helps you find exactly what you're looking for.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#x1F4CB;</div>
+        <h3>Full Support</h3>
+        <p>From viewing to purchase, we guide you through every step.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 LuxuryProperties Dubai. This is a demo site.</p>
+  </footer>
+
+  <div class="chat-badge">&#x2190; Try the AI Assistant!</div>
+
+  <!-- Ecom Chat Widget Embed -->
+  <script type="module">
+    // In production, this would be a single bundled JS file:
+    // <script src="https://cdn.example.com/ecom-chat-widget.js"></script>
+    //
+    // For development, we import from the Vite dev server:
+    import("http://localhost:5173/src/embed.tsx").then(() => {
+      window.EcomChat.init({
+        apiUrl: "http://localhost:8000/api/chat",
+        title: "Property Assistant",
+        subtitle: "Online - Ask me anything",
+        position: "bottom-right",
+      });
+    }).catch(() => {
+      console.log("Widget dev server not running. Start with: cd frontend/widget && npm run dev");
+    });
+  </script>
+</body>
+</html>
