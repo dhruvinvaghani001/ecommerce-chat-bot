@@ -2,9 +2,9 @@ import { ChatWidget } from "./components/ChatWidget";
 import type { WidgetConfig } from "./types";
 
 const config: WidgetConfig = {
-  apiUrl: "http://localhost:8000/api/chat",
-  title: "Property Assistant",
-  subtitle: "Online - Ask me anything",
+  apiUrl: "/api/chat",
+  title: "Store Assistant",
+  subtitle: "Online - Ask about products and prices",
   position: "bottom-right",
 };
 

@@ -35,6 +35,10 @@ export interface Pagination {
 export interface CardListData {
   items: ProductItem[];
   pagination: Pagination;
+  paginationCommands?: {
+    previous?: string;
+    next?: string;
+  };
 }
 
 export interface CardDetailData {

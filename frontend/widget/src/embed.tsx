@@ -14,8 +14,8 @@ interface EcomChatInit {
 function initEcomChat(options: EcomChatInit = {}) {
   const config: WidgetConfig = {
     apiUrl: options.apiUrl || "http://localhost:8000/api/chat",
-    title: options.title || "AI Assistant",
-    subtitle: options.subtitle || "Online - Ask me anything",
+    title: options.title || "Store Assistant",
+    subtitle: options.subtitle || "Online - Ask about products and prices",
     position: options.position || "bottom-right",
   };
 

@@ -61,9 +61,10 @@ export function ChatWidget({ config }: Props) {
             {messages.length === 0 && (
               <div className="ecw-msg ecw-msg--assistant">
                 <div className="ecw-msg-bubble">
-                  Hello! I'm your AI assistant. I can help you browse
-                  properties, find specific listings, get details, and answer
-                  questions about our policies. How can I help you today?
+                  Hello! I'm your AI shopping assistant. I can help you browse
+                  products, find items within a price range, get product
+                  details, and answer questions about store policies. How can I
+                  help you today?
                 </div>
               </div>
             )}

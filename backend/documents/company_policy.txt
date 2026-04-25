@@ -1,64 +1,29 @@
-REAL ESTATE COMPANY - POLICIES AND TERMS
+STORE POLICIES AND TERMS
 
-1. PROPERTY VIEWING POLICY
-- All property viewings must be scheduled at least 24 hours in advance.
-- Clients must present valid identification before entering any property.
-- A maximum of 3 viewings per day can be arranged per client.
-- Virtual tours are available for all listed properties upon request.
+1. PRODUCT INFORMATION
+- Product names, prices, stock status, images, and product URLs are sourced from the Magento storefront catalog.
+- Catalog availability and pricing can change without prior notice.
 
-2. PAYMENT TERMS
-- A booking deposit of 10% is required to reserve any property.
-- Payment plans are available for off-plan properties with flexible installments.
-- For ready properties, full payment or mortgage approval is required within 30 days of signing the MOU.
-- Service charges are paid annually and vary by community.
-- All prices listed are in AED (United Arab Emirates Dirham).
+2. SEARCH EXPERIENCE
+- The chat assistant currently supports keyword search, price filtering, product detail lookup, and paginated result browsing.
+- Additional filters may be added later as the storefront integration expands.
 
-3. REFUND POLICY
-- Booking deposits are refundable within 14 days if the buyer cancels before signing the Sale and Purchase Agreement (SPA).
-- After SPA signing, a cancellation fee of 25% of the property value applies.
-- Processing time for refunds is 30-45 business days.
+3. PRODUCT LINKS
+- "View Product" actions open the relevant product page on the Magento storefront.
+- Final product information should be confirmed on the storefront product page.
 
-4. AGENT COMMISSION
-- The standard agent commission is 2% of the property sale price.
-- Commission is paid upon completion of the transaction.
-- Rental commissions are 5% of the annual rent.
+4. RETURNS AND EXCHANGES
+- This demo assistant does not process returns or exchanges directly.
+- Return and exchange decisions should follow the storefront's published policies.
 
-5. PROPERTY MANAGEMENT SERVICES
-- We offer full property management services for landlords.
-- Monthly management fee: 5% of monthly rent collected.
-- Services include tenant screening, rent collection, maintenance coordination, and regular property inspections.
+5. PAYMENTS AND ORDERS
+- The chat assistant does not place orders or process payments.
+- Checkout, payment, and order confirmation happen on the storefront website.
 
-6. WARRANTY AND MAINTENANCE
-- New properties come with a 1-year defects liability period from the developer.
-- Structural warranty is 10 years as per UAE law.
-- We assist in filing and following up on any warranty claims with the developer.
+6. CUSTOMER SUPPORT
+- The assistant helps with discovery and product lookup.
+- If a request requires account access, order history, or checkout support, the user should continue on the storefront.
 
-7. DOCUMENT REQUIREMENTS
-For buyers:
-- Valid passport copy
-- UAE visa/Emirates ID (for residents)
-- Proof of income / bank statements
-- NOC from developer (for resale properties)
-
-For renters:
-- Valid passport copy
-- UAE visa/Emirates ID
-- Employment contract or salary certificate
-- Security deposit (typically 5% of annual rent for unfurnished, 10% for furnished)
-
-8. CONTACT INFORMATION
-- Customer Service: Available 24/7 via chat
-- Office Hours: Sunday to Thursday, 9 AM to 6 PM
-- Emergency Maintenance: Available 24/7 for managed properties
-- Email: support@example-realestate.com
-- Phone: +971 4 123 4567
-
-9. PRIVACY POLICY
-- All personal information is handled in accordance with UAE data protection laws.
-- Client data is never shared with third parties without explicit consent.
-- Clients can request deletion of their data at any time.
-
-10. DISPUTE RESOLUTION
-- All disputes are first handled through our internal mediation process.
-- If unresolved, disputes are escalated to the Dubai Land Department (DLD).
-- The governing law is the law of the United Arab Emirates.
+7. PRIVACY
+- The chat assistant should only use information needed to answer the current request.
+- Sensitive account or payment information should not be requested in chat.

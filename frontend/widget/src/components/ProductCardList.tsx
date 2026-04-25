@@ -35,6 +35,9 @@ export function ProductCardList({ data, onQuickReply }: Props) {
 
   if (!data.items || data.items.length === 0) return null;
 
+  const { pageNo, totalPages, totalItems } = data.pagination;
+  const paginationCommands = data.paginationCommands || {};
+
   return (
     <div className="ecw-card-list">
       <div className="ecw-card-scroll-area">
@@ -64,6 +67,37 @@ export function ProductCardList({ data, onQuickReply }: Props) {
           </button>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="ecw-pagination">
+          <button
+            className="ecw-pagination-btn"
+            onClick={() =>
+              paginationCommands.previous &&
+              onQuickReply("Previous page", paginationCommands.previous)
+            }
+            disabled={!paginationCommands.previous}
+          >
+            Previous
+          </button>
+
+          <div className="ecw-pagination-meta">
+            Page {pageNo} of {totalPages}
+            <span className="ecw-pagination-total">{totalItems} products</span>
+          </div>
+
+          <button
+            className="ecw-pagination-btn"
+            onClick={() =>
+              paginationCommands.next &&
+              onQuickReply("Next page", paginationCommands.next)
+            }
+            disabled={!paginationCommands.next}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

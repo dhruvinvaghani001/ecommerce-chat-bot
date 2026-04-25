@@ -362,6 +362,44 @@
   position: relative;
 }
 
+.ecw-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ecw-pagination-btn {
+  border: 1px solid var(--ecw-border);
+  background: var(--ecw-surface);
+  color: var(--ecw-text);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ecw-pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ecw-pagination-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--ecw-text);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.ecw-pagination-total {
+  color: var(--ecw-text-secondary);
+  font-size: 11px;
+}
+
 .ecw-card-carousel {
   display: flex;
   gap: 8px;
@@ -700,5 +738,14 @@
 
   .ecw-panel.ecw-left {
     left: 8px;
+  }
+
+  .ecw-pagination {
+    gap: 8px;
+  }
+
+  .ecw-pagination-btn {
+    padding: 6px 10px;
+    font-size: 11px;
   }
 }

@@ -20,6 +20,15 @@ def _get_llm():
             temperature=0.3,
             max_tokens=2048,
         )
+    if settings.LLM_PROVIDER == "openai":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=settings.OPENAI_MODEL_ID,
+            api_key=settings.OPENAI_API_KEY,
+            temperature=0.3,
+            max_tokens=2048,
+        )
     else:
         from langchain_huggingface import (
             ChatHuggingFace,

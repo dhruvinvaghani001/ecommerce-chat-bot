@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Luxury Properties Dubai - Demo</title>
+  <title>Magento Store Demo</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -97,13 +97,13 @@
       margin-bottom: 32px;
     }
 
-    .property-grid {
+    .product-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 24px;
     }
 
-    .property-card {
+    .product-card {
       background: white;
       border-radius: 12px;
       overflow: hidden;
@@ -111,22 +111,22 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .property-card:hover {
+    .product-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 30px rgba(0,0,0,0.1);
     }
 
-    .property-card img {
+    .product-card img {
       width: 100%;
       height: 200px;
       object-fit: cover;
     }
 
-    .property-card .card-body {
+    .product-card .card-body {
       padding: 16px;
     }
 
-    .property-card .badge {
+    .product-card .badge {
       display: inline-block;
       background: #fff5ee;
       color: #e8734a;
@@ -137,19 +137,19 @@
       margin-bottom: 8px;
     }
 
-    .property-card h3 {
+    .product-card h3 {
       font-size: 16px;
       font-weight: 600;
       margin-bottom: 4px;
     }
 
-    .property-card .location {
+    .product-card .meta {
       font-size: 13px;
       color: #888;
       margin-bottom: 8px;
     }
 
-    .property-card .price {
+    .product-card .price {
       font-size: 18px;
       font-weight: 700;
       color: #e8734a;
@@ -218,60 +218,60 @@
 </head>
 <body>
   <nav>
-    <div class="logo">LuxuryProperties</div>
+    <div class="logo">MagentoDemo</div>
     <ul class="nav-links">
       <li><a href="#">Home</a></li>
-      <li><a href="#">Buy</a></li>
-      <li><a href="#">Rent</a></li>
-      <li><a href="#">About</a></li>
+      <li><a href="#">Shop</a></li>
+      <li><a href="#">New Arrivals</a></li>
+      <li><a href="#">Categories</a></li>
       <li><a href="#">Contact</a></li>
     </ul>
   </nav>
 
   <div class="hero">
-    <h1>Find Your Dream Home in Dubai</h1>
-    <p>Discover luxury villas, apartments, and penthouses across Dubai's most prestigious locations.</p>
-    <a href="#" class="hero-cta">Explore Properties</a>
+    <h1>Discover Products From the Magento Demo Store</h1>
+    <p>Browse apparel, compare prices, and use the chat assistant to explore products faster.</p>
+    <a href="#" class="hero-cta">Explore Products</a>
   </div>
 
   <div class="section">
-    <h2>Featured Properties</h2>
-    <p class="subtitle">Hand-picked luxury properties for discerning buyers</p>
-    <div class="property-grid">
-      <div class="property-card">
-        <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=200&fit=crop" alt="Villa">
+    <h2>Featured Products</h2>
+    <p class="subtitle">Sample catalog items from the connected storefront</p>
+    <div class="product-grid">
+      <div class="product-card">
+        <img src="https://magentodemo.ethnicinfotech.in/media/catalog/product/cache/74c1057f7991b4edb2bc7bdaa94de933/w/s/wsh03-gray_main_2.jpg" alt="Gwen Drawstring Bike Short">
         <div class="card-body">
-          <span class="badge">Villa</span>
-          <h3>Serge33 Luxury Villa</h3>
-          <div class="location">Dubai Marina</div>
-          <div class="price">AED 2,939.87</div>
+          <span class="badge">Shorts</span>
+          <h3>Gwen Drawstring Bike Short</h3>
+          <div class="meta">SKU: WSH03</div>
+          <div class="price">USD 50.00</div>
         </div>
       </div>
-      <div class="property-card">
-        <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=200&fit=crop" alt="Villa">
+      <div class="product-card">
+        <img src="https://magentodemo.ethnicinfotech.in/media/catalog/product/cache/74c1057f7991b4edb2bc7bdaa94de933/w/j/wj12-blue_main_1.jpg" alt="Olivia 1/4 Zip Light Jacket">
         <div class="card-body">
-          <span class="badge">Villa</span>
-          <h3>Close to Souk Madinat</h3>
-          <div class="location">Jumeirah</div>
-          <div class="price">AED 3,300,000</div>
+          <span class="badge">Jackets</span>
+          <h3>Olivia 1/4 Zip Light Jacket</h3>
+          <div class="meta">SKU: WJ12</div>
+          <div class="price">USD 77.00</div>
         </div>
       </div>
-      <div class="property-card">
-        <img src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&h=200&fit=crop" alt="Villa">
+      <div class="product-card">
+        <img src="https://magentodemo.ethnicinfotech.in/media/catalog/product/cache/74c1057f7991b4edb2bc7bdaa94de933/w/j/wj06-purple_main_1.jpg" alt="Juno Jacket">
         <div class="card-body">
-          <span class="badge">Villa</span>
-          <h3>Extended | Opposite Park</h3>
-          <div class="location">Arabian Ranches</div>
-          <div class="price">AED 3,600,000</div>
+          <span class="badge">Jackets</span>
+          <h3>Juno Jacket</h3>
+          <div class="meta">SKU: WJ06</div>
+          <div class="price">USD 77.00</div>
         </div>
       </div>
-      <div class="property-card">
-        <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=200&fit=crop" alt="Penthouse">
+      <div class="product-card">
+        <img src="https://magentodemo.ethnicinfotech.in/media/catalog/product/cache/74c1057f7991b4edb2bc7bdaa94de933/w/j/wj11-blue_main_1.jpg" alt="Neve Studio Dance Jacket">
         <div class="card-body">
-          <span class="badge">Penthouse</span>
-          <h3>Palm Jumeirah Penthouse</h3>
-          <div class="location">Palm Jumeirah</div>
-          <div class="price">AED 20,000,000</div>
+          <span class="badge">Jackets</span>
+          <h3>Neve Studio Dance Jacket</h3>
+          <div class="meta">SKU: WJ11</div>
+          <div class="price">USD 69.00</div>
         </div>
       </div>
     </div>
@@ -281,25 +281,25 @@
     <h2>Why Choose Us</h2>
     <div class="features">
       <div class="feature-card">
-        <div class="feature-icon">&#x1F3E0;</div>
-        <h3>Premium Properties</h3>
-        <p>Curated selection of Dubai's finest real estate from trusted developers.</p>
+        <div class="feature-icon">&#x1F6CD;</div>
+        <h3>Live Catalog</h3>
+        <p>Product cards are backed by the Magento GraphQL API instead of static demo inventory.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">&#x1F916;</div>
         <h3>AI-Powered Search</h3>
-        <p>Our intelligent chatbot helps you find exactly what you're looking for.</p>
+        <p>The assistant can search by keyword, filter by price, and open product details.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">&#x1F4CB;</div>
-        <h3>Full Support</h3>
-        <p>From viewing to purchase, we guide you through every step.</p>
+        <h3>Pagination Ready</h3>
+        <p>Browse larger result sets with page-based navigation directly inside the chat widget.</p>
       </div>
     </div>
   </div>
 
   <footer>
-    <p>&copy; 2026 LuxuryProperties Dubai. This is a demo site.</p>
+    <p>&copy; 2026 Magento Demo Store. This is a demo site.</p>
   </footer>
 
   <div class="chat-badge">&#x2190; Try the AI Assistant!</div>
@@ -313,8 +313,8 @@
     import("http://localhost:5173/src/embed.tsx").then(() => {
       window.EcomChat.init({
         apiUrl: "http://localhost:8000/api/chat",
-        title: "Property Assistant",
-        subtitle: "Online - Ask me anything",
+        title: "Store Assistant",
+        subtitle: "Online - Ask about products and prices",
         position: "bottom-right",
       });
     }).catch(() => {

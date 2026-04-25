@@ -1,20 +1,27 @@
+import asyncio
 import json
-import uuid
+import logging
 import traceback
+import uuid
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from app.config import settings
 from app.agent.graph import get_agent
+from app.config import settings
 from app.rag.ingest import ingest_documents
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 
 app = FastAPI(title="Ecom Chat AI Agent", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,12 +32,24 @@ threads: dict[str, list] = {}
 
 @app.on_event("startup")
 async def startup():
-    print("Ingesting documents into vector store...")
-    try:
-        count = ingest_documents()
-        print(f"Document ingestion complete: {count} chunks.")
-    except Exception as e:
-        print(f"Document ingestion skipped: {e}")
+    if not settings.AUTO_INGEST_ON_STARTUP:
+        print("Automatic document ingestion disabled.")
+        return
+
+    async def _ingest_in_background():
+        print("Ingesting documents into vector store...")
+        try:
+            count = await asyncio.to_thread(ingest_documents)
+            print(f"Document ingestion complete: {count} chunks.")
+        except Exception as e:
+            print(f"Document ingestion skipped: {e}")
+
+    asyncio.create_task(_ingest_in_background())
+
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to Ecom Chat AI Agent"}
 
 
 @app.get("/health")
