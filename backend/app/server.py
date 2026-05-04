@@ -10,6 +10,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from app.agent.graph import get_agent
 from app.config import settings
+from app.products.service import refresh_filter_options_cache
 from app.rag.ingest import ingest_documents
 
 logging.basicConfig(
@@ -27,11 +28,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-threads: dict[str, list] = {}
+threads: dict[str, dict] = {}
 
 
 @app.on_event("startup")
 async def startup():
+    try:
+        refresh_filter_options_cache()
+    except Exception:
+        logging.exception("initial filter options refresh failed")
+
     if not settings.AUTO_INGEST_ON_STARTUP:
         print("Automatic document ingestion disabled.")
         return
@@ -75,24 +81,37 @@ async def http_chat(request: dict):
     thread_id = request.get("thread_id") or str(uuid.uuid4())
 
     if thread_id not in threads:
-        threads[thread_id] = []
+        threads[thread_id] = {
+            "messages": [],
+            "last_search_context": None,
+            "pending_search_confirmation": None,
+        }
 
-    threads[thread_id].append(HumanMessage(content=user_message))
+    thread_state = threads[thread_id]
+    thread_state["messages"].append(HumanMessage(content=user_message))
 
     agent = get_agent()
 
     try:
-        prev_msg_count = len(threads[thread_id]) - 1
+        prev_msg_count = len(thread_state["messages"]) - 1
 
         result = await agent.ainvoke(
             {
-                "messages": threads[thread_id],
+                "messages": thread_state["messages"],
                 "components": [],
                 "thread_id": thread_id,
+                "last_search_context": thread_state.get("last_search_context"),
+                "pending_search_confirmation": thread_state.get(
+                    "pending_search_confirmation"
+                ),
             }
         )
 
-        threads[thread_id] = result["messages"]
+        thread_state["messages"] = result["messages"]
+        thread_state["last_search_context"] = result.get("last_search_context")
+        thread_state["pending_search_confirmation"] = result.get(
+            "pending_search_confirmation"
+        )
 
         new_messages = result["messages"][prev_msg_count:]
 
@@ -132,9 +151,10 @@ async def http_chat(request: dict):
 
     except Exception as e:
         traceback.print_exc()
+        logging.exception("chat request failed")
         return {
             "type": "error",
-            "content": f"Error: {type(e).__name__}: {str(e)}",
+            "content": "Failed to fetch products currently.",
             "thread_id": thread_id,
         }
 
@@ -144,3 +164,10 @@ async def trigger_ingest():
     """Manually trigger document ingestion."""
     count = ingest_documents()
     return {"status": "ok", "chunks_ingested": count}
+
+
+@app.post("/api/filters/refresh")
+async def trigger_filter_refresh():
+    """Manually refresh cached Magento filter metadata."""
+    data = refresh_filter_options_cache()
+    return {"status": "ok", **data}

@@ -13,68 +13,11 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-ATTRIBUTE_FILTER_KEYS = (
-    "category",
-    "climate",
-    "collar",
-    "color",
-    "eco_collection",
-    "erin_recommends",
-    "features_bags",
-    "format",
-    "gender",
-    "material",
-    "pattern",
-    "performance_fabric",
-    "sale",
-    "size",
-    "sleeve",
-    "strap_bags",
-    "style_bags",
-    "style_bottom",
-    "style_general",
-)
-
-FILTER_VALUE_ALIASES: dict[str, dict[str, str]] = {
-    "gender": {
-        "male": "men",
-        "man": "men",
-        "men": "men",
-        "mens": "men",
-        "boy": "men",
-        "boys": "men",
-        "female": "women",
-        "woman": "women",
-        "women": "women",
-        "womens": "women",
-        "lady": "women",
-        "ladies": "women",
-        "girl": "women",
-        "girls": "women",
-    }
+FILTER_ALIASES = {
+    "category": "category_uid",
 }
 
-FILTER_AGGREGATION_CODES: dict[str, tuple[str, ...]] = {
-    "category": ("category_uid", "category_gear"),
-    "climate": ("climate",),
-    "collar": ("collar",),
-    "color": ("color",),
-    "eco_collection": ("eco_collection",),
-    "erin_recommends": ("erin_recommends",),
-    "features_bags": ("features_bags",),
-    "format": ("format",),
-    "gender": ("gender",),
-    "material": ("material",),
-    "pattern": ("pattern",),
-    "performance_fabric": ("performance_fabric",),
-    "sale": ("sale",),
-    "size": ("size",),
-    "sleeve": ("sleeve",),
-    "strap_bags": ("strap_bags",),
-    "style_bags": ("style_bags",),
-    "style_bottom": ("style_bottom",),
-    "style_general": ("style_general",),
-}
+LOCAL_FILTER_AGGREGATIONS: list[dict[str, Any]] = []
 
 FILTER_OPTIONS_QUERY = """
 query FilterOptions {
@@ -92,42 +35,9 @@ query FilterOptions {
 }
 """
 
-CATEGORY_TREE_QUERY = """
-query CategoryTree {
-  categoryList {
-    id
-    name
-    url_key
-    level
-    path
-    children {
-      id
-      name
-      url_key
-      level
-      path
-      children {
-        id
-        name
-        url_key
-        level
-        path
-        children {
-          id
-          name
-          url_key
-          level
-          path
-        }
-      }
-    }
-  }
-}
-"""
-
 FILTER_OPTIONS_TTL_SECONDS = 900
-_filter_options_cache: dict[str, Any] = {"expires_at": 0.0, "options": {}}
-_category_tree_cache: dict[str, Any] = {"expires_at": 0.0, "categories": []}
+_filter_options_cache: dict[str, Any] = {"expires_at": 0.0, "aggregations": {}}
+FILTER_PROMPT_MAX_OPTIONS_PER_FILTER = 20
 
 PRODUCT_FIELDS = """
 total_count
@@ -182,8 +92,22 @@ def _post_graphql(query: str, variables: dict[str, Any]) -> dict[str, Any]:
             body = response.read().decode("utf-8")
     except HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
+        logger.error(
+            "[MagentoGraphQL] HTTPError status=%s reason=%s url=%s variables=%s body=%s",
+            exc.code,
+            getattr(exc, "reason", ""),
+            settings.MAGENTO_GRAPHQL_URL,
+            json.dumps(variables, ensure_ascii=True, sort_keys=True),
+            body,
+        )
         raise RuntimeError(f"Magento GraphQL HTTP {exc.code}: {body}") from exc
     except URLError as exc:
+        logger.error(
+            "[MagentoGraphQL] URLError url=%s variables=%s reason=%s",
+            settings.MAGENTO_GRAPHQL_URL,
+            json.dumps(variables, ensure_ascii=True, sort_keys=True),
+            exc.reason,
+        )
         raise RuntimeError(f"Magento GraphQL request failed: {exc.reason}") from exc
 
     try:
@@ -196,7 +120,9 @@ def _post_graphql(query: str, variables: dict[str, Any]) -> dict[str, Any]:
         message = "; ".join(
             error.get("message", "Unknown GraphQL error") for error in errors
         )
-        logger.error("[MagentoGraphQL] errors=%s", json.dumps(errors, ensure_ascii=True))
+        logger.error(
+            "[MagentoGraphQL] errors=%s", json.dumps(errors, ensure_ascii=True)
+        )
         raise RuntimeError(f"Magento GraphQL error: {message}")
 
     data = parsed.get("data")
@@ -255,119 +181,227 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", normalized).strip()
 
 
-def _load_filter_options() -> dict[str, list[dict[str, Any]]]:
-    now = time.time()
-    if _filter_options_cache["expires_at"] > now:
-        return _filter_options_cache["options"]
+def _sanitize_search_query(
+    user_request: str,
+    query: str,
+    attribute_filters: dict[str, Any],
+    name: str,
+) -> str:
+    normalized_query = str(query or "").strip()
+    if not normalized_query:
+        return ""
 
-    data = _post_graphql(FILTER_OPTIONS_QUERY, {})
-    aggregations = data.get("products", {}).get("aggregations", []) or []
-    options_by_code: dict[str, list[dict[str, Any]]] = {}
+    normalized_user_request = str(user_request or "").strip()
+    if normalized_user_request and _normalize_text(normalized_query) == _normalize_text(
+        normalized_user_request
+    ):
+        return ""
 
-    for aggregation in aggregations:
+    if _is_present(name):
+        return normalized_query
+
+    if attribute_filters:
+        lowered_query = _normalize_text(normalized_query)
+        generic_tokens = {
+            "i",
+            "want",
+            "to",
+            "see",
+            "show",
+            "me",
+            "products",
+            "product",
+            "with",
+            "in",
+            "of",
+            "category",
+            "size",
+            "brand",
+            "color",
+            "price",
+            "under",
+            "above",
+            "between",
+            "for",
+        }
+        query_tokens = [token for token in lowered_query.split() if token not in generic_tokens]
+        attribute_value_tokens: set[str] = set()
+        for value in attribute_filters.values():
+            attribute_value_tokens.update(_normalize_text(str(value)).split())
+
+        remaining_tokens = [
+            token for token in query_tokens if token not in attribute_value_tokens
+        ]
+        if not remaining_tokens:
+            return ""
+
+    return normalized_query
+
+
+def _extract_numeric_value(text: str) -> float | None:
+    matches = re.findall(r"\d+(?:\.\d+)?", str(text).strip().lower())
+    if not matches:
+        return None
+    return float(matches[0])
+
+
+def _label_matches_numeric_value(label: str, numeric_value: float) -> bool:
+    label_text = str(label).strip().lower()
+    numbers = [float(match) for match in re.findall(r"\d+(?:\.\d+)?", label_text)]
+    if not numbers:
+        return False
+
+    if len(numbers) >= 2:
+        low, high = numbers[0], numbers[1]
+        return low <= numeric_value <= high
+
+    threshold = numbers[0]
+    if any(word in label_text for word in ("below", "under", "less than")):
+        return numeric_value < threshold
+    if any(word in label_text for word in ("above", "over", "more than")):
+        return numeric_value > threshold
+
+    return numeric_value == threshold
+
+
+def _canonical_attribute_key(key: str) -> str:
+    return str(FILTER_ALIASES.get(key, key)).strip()
+
+
+def _public_attribute_key(canonical_key: str) -> str:
+    for public_key, target_key in FILTER_ALIASES.items():
+        if str(target_key).strip() == canonical_key:
+            return str(public_key).strip()
+    return canonical_key
+
+
+def _merge_aggregation_options(
+    base: list[dict[str, Any]],
+    extra: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen_values: set[str] = set()
+
+    for option in [*(base or []), *(extra or [])]:
+        value = str(option.get("value", "")).strip()
+        if not value or value in seen_values:
+            continue
+        seen_values.add(value)
+        merged.append(option)
+
+    return merged
+
+
+def _merge_aggregations(
+    remote_aggregations: list[dict[str, Any]],
+    local_aggregations: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    aggregations_by_code: dict[str, dict[str, Any]] = {}
+
+    for aggregation in remote_aggregations:
         code = aggregation.get("attribute_code")
         if not code:
             continue
-        options_by_code[code] = aggregation.get("options", []) or []
+        aggregations_by_code[str(code)] = {
+            "attribute_code": str(code),
+            "label": aggregation.get("label", ""),
+            "options": aggregation.get("options", []) or [],
+        }
 
-    _filter_options_cache["options"] = options_by_code
-    _filter_options_cache["expires_at"] = now + FILTER_OPTIONS_TTL_SECONDS
-    return options_by_code
+    for aggregation in local_aggregations:
+        code = aggregation.get("attribute_code")
+        if not code:
+            continue
+        normalized_code = str(code)
+        existing = aggregations_by_code.get(normalized_code, {})
+        aggregations_by_code[normalized_code] = {
+            "attribute_code": normalized_code,
+            "label": existing.get("label") or aggregation.get("label", ""),
+            "options": _merge_aggregation_options(
+                existing.get("options", []) or [],
+                aggregation.get("options", []) or [],
+            ),
+        }
+
+    return aggregations_by_code
 
 
-def _flatten_categories(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    flattened: list[dict[str, Any]] = []
-    for node in nodes:
-        flattened.append(
-            {
-                "id": str(node.get("id", "")).strip(),
-                "name": str(node.get("name", "")).strip(),
-                "url_key": str(node.get("url_key", "")).strip(),
-                "level": node.get("level"),
-                "path": str(node.get("path", "")).strip(),
-            }
-        )
-        children = node.get("children", []) or []
-        if children:
-            flattened.extend(_flatten_categories(children))
-    return flattened
-
-
-def _load_category_tree() -> list[dict[str, Any]]:
+def _load_filter_options() -> dict[str, dict[str, Any]]:
     now = time.time()
-    if _category_tree_cache["expires_at"] > now:
-        return _category_tree_cache["categories"]
+    if _filter_options_cache["expires_at"] > now:
+        return _filter_options_cache["aggregations"]
 
-    data = _post_graphql(CATEGORY_TREE_QUERY, {})
-    categories = _flatten_categories(data.get("categoryList", []) or [])
-    _category_tree_cache["categories"] = categories
-    _category_tree_cache["expires_at"] = now + FILTER_OPTIONS_TTL_SECONDS
-    return categories
+    local_aggregations = LOCAL_FILTER_AGGREGATIONS
+    stale_aggregations = _filter_options_cache.get("aggregations", {}) or {}
 
+    try:
+        data = _post_graphql(FILTER_OPTIONS_QUERY, {})
+        remote_aggregations = data.get("products", {}).get("aggregations", []) or []
+        aggregations_by_code = _merge_aggregations(remote_aggregations, local_aggregations)
+    except Exception:
+        logger.exception("filter options refresh failed")
+        if stale_aggregations:
+            logger.info("using stale filter options cache after refresh failure")
+            return stale_aggregations
+        logger.info("using local filter configuration only after refresh failure")
+        aggregations_by_code = _merge_aggregations([], local_aggregations)
 
-def _resolve_category_id(raw_value: str) -> str:
-    normalized = raw_value.strip()
-    if not normalized:
-        return normalized
-    if normalized.isdigit():
-        return normalized
-
-    categories = _load_category_tree()
-    normalized_text = _normalize_text(normalized)
-    if not normalized_text:
-        return normalized
-
-    for category in categories:
-        if category["id"] == normalized:
-            return category["id"]
-
-    exact_matches = [
-        category
-        for category in categories
-        if _normalize_text(category["name"]) == normalized_text
-        or _normalize_text(category["url_key"]) == normalized_text
-    ]
-    if exact_matches:
-        best = min(
-            exact_matches,
-            key=lambda category: (int(category.get("level") or 999), len(category["path"])),
-        )
-        return best["id"]
-
-    contains_matches = [
-        category
-        for category in categories
-        if normalized_text in _normalize_text(category["name"])
-        or normalized_text in _normalize_text(category["url_key"])
-    ]
-    if contains_matches:
-        best = min(
-            contains_matches,
-            key=lambda category: (int(category.get("level") or 999), len(category["path"])),
-        )
-        return best["id"]
-
-    return normalized
+    _filter_options_cache["aggregations"] = aggregations_by_code
+    _filter_options_cache["expires_at"] = now + FILTER_OPTIONS_TTL_SECONDS
+    return aggregations_by_code
 
 
-def _match_option_value(key: str, raw_value: str) -> str:
-    option_codes = FILTER_AGGREGATION_CODES.get(key, (key,))
+def refresh_filter_options_cache() -> dict[str, Any]:
+    _filter_options_cache["expires_at"] = 0.0
+    aggregations = _load_filter_options()
+    return {
+        "filterCount": len(aggregations),
+        "filters": sorted(_public_attribute_key(key) for key in aggregations.keys()),
+    }
+
+
+def _match_option_value(key: str, raw_value: str) -> str | None:
+    canonical_key = _canonical_attribute_key(key)
     normalized_raw = _normalize_filter_value(key, raw_value)
     normalized_text = _normalize_text(normalized_raw)
     if not normalized_text:
-        return normalized_raw
+        return None
 
-    options_by_code = _load_filter_options()
-    candidates: list[dict[str, Any]] = []
-    for code in option_codes:
-        candidates.extend(options_by_code.get(code, []))
+    aggregations_by_code = _load_filter_options()
+    aggregation = aggregations_by_code.get(canonical_key)
+    if not aggregation:
+        logger.info(
+            "[FilterResolver] key=%r skipped because it is missing from Magento aggregations and local config",
+            key,
+        )
+        return None
+
+    candidates = aggregation.get("options", []) or []
 
     if not candidates:
-        return normalized_raw
+        logger.info(
+            "[FilterResolver] key=%r skipped because aggregation has no options",
+            key,
+        )
+        return None
 
     for option in candidates:
         if str(option.get("value", "")).strip() == normalized_raw:
             return str(option.get("value", "")).strip()
+
+    numeric_value = _extract_numeric_value(normalized_raw)
+    if numeric_value is not None:
+        numeric_range_matches = [
+            option
+            for option in candidates
+            if _label_matches_numeric_value(str(option.get("label", "")), numeric_value)
+        ]
+        if numeric_range_matches:
+            best = max(
+                numeric_range_matches,
+                key=lambda option: int(option.get("count", 0) or 0),
+            )
+            return str(best.get("value", normalized_raw)).strip()
 
     exact_label_matches = [
         option
@@ -375,7 +409,9 @@ def _match_option_value(key: str, raw_value: str) -> str:
         if _normalize_text(str(option.get("label", ""))) == normalized_text
     ]
     if exact_label_matches:
-        best = max(exact_label_matches, key=lambda option: int(option.get("count", 0) or 0))
+        best = max(
+            exact_label_matches, key=lambda option: int(option.get("count", 0) or 0)
+        )
         return str(best.get("value", normalized_raw)).strip()
 
     contains_matches = [
@@ -385,10 +421,154 @@ def _match_option_value(key: str, raw_value: str) -> str:
         or _normalize_text(str(option.get("label", ""))) in normalized_text
     ]
     if contains_matches:
-        best = max(contains_matches, key=lambda option: int(option.get("count", 0) or 0))
+        best = max(
+            contains_matches, key=lambda option: int(option.get("count", 0) or 0)
+        )
         return str(best.get("value", normalized_raw)).strip()
 
-    return normalized_raw
+    logger.info(
+        "[FilterResolver] key=%r value=%r skipped because no matching aggregation option was found",
+        key,
+        raw_value,
+    )
+    return None
+
+
+def _available_filter_catalog() -> list[dict[str, Any]]:
+    aggregations_by_code = _load_filter_options()
+    filters: list[dict[str, Any]] = []
+
+    for canonical_key in sorted(aggregations_by_code.keys()):
+        aggregation = aggregations_by_code[canonical_key]
+        filters.append(
+            {
+                "key": _public_attribute_key(canonical_key),
+                "attribute_code": canonical_key,
+                "label": aggregation.get("label", ""),
+                "options": [
+                    {
+                        "label": option.get("label", ""),
+                        "value": str(option.get("value", "")).strip(),
+                        "count": option.get("count", 0),
+                    }
+                    for option in (aggregation.get("options", []) or [])
+                    if str(option.get("value", "")).strip()
+                ],
+            }
+        )
+
+    return filters
+
+
+def build_filter_prompt_context() -> str:
+    filters = _available_filter_catalog()
+    if not filters:
+        return (
+            "## Runtime Storefront Filter Context\n"
+            "- No live filter catalog is currently available.\n"
+            "- Use only broad product search, price, pagination, and exact product details.\n"
+        )
+
+    lines = [
+        "## Runtime Storefront Filter Context",
+        "- Use only the filters and option labels listed below for `search_products`.",
+        "- Put non-price filters inside the `attributes` object.",
+        "- Backend will map labels to Magento GraphQL filter values.",
+        "- If a requested filter or value is missing below, ask one short clarification question.",
+        "",
+    ]
+
+    for item in filters:
+        key = str(item.get("key", "")).strip()
+        if not key:
+            continue
+        options = item.get("options", []) or []
+        option_labels = [
+            str(option.get("label", "")).strip()
+            for option in options
+            if str(option.get("label", "")).strip()
+        ]
+        option_labels = option_labels[:FILTER_PROMPT_MAX_OPTIONS_PER_FILTER]
+        label = str(item.get("label", "")).strip() or key
+        if option_labels:
+            lines.append(f"- {key} ({label}): {', '.join(option_labels)}")
+        else:
+            lines.append(f"- {key} ({label})")
+
+    return "\n".join(lines)
+
+
+def _available_option_labels(attribute_key: str) -> list[str]:
+    canonical_key = _canonical_attribute_key(attribute_key)
+    aggregation = _load_filter_options().get(canonical_key, {})
+    labels: list[str] = []
+    for option in aggregation.get("options", []) or []:
+        label = str(option.get("label", "")).strip()
+        if label:
+            labels.append(label)
+    return labels
+
+
+def _build_validation_error(
+    *,
+    message: str,
+    unsupported_attribute_filters: dict[str, Any],
+    question: str,
+    query: str,
+    name: str,
+    price: str,
+    min_price: float | None,
+    max_price: float | None,
+    page: int,
+    page_size: int,
+    attribute_filters: dict[str, Any],
+) -> dict[str, Any]:
+    available_options = {
+        key: _available_option_labels(key)
+        for key in unsupported_attribute_filters
+        if _available_option_labels(key)
+    }
+    return {
+        "validationError": {
+            "message": message,
+            "unsupportedAttributes": unsupported_attribute_filters,
+            "question": question,
+            "availableOptions": available_options,
+        },
+        "items": [],
+        "pagination": _pagination(0, page, page_size),
+        "paginationCommands": {},
+        "searchMeta": _search_meta(
+            query=query,
+            name=name,
+            price=price,
+            min_price=min_price,
+            max_price=max_price,
+            page=page,
+            page_size=page_size,
+            attribute_filters=attribute_filters,
+            unsupported_attribute_filters=unsupported_attribute_filters,
+        ),
+    }
+
+
+def _first_validation_question(
+    unsupported_attribute_filters: dict[str, Any],
+) -> str:
+    if not unsupported_attribute_filters:
+        return "Could you clarify which filter you want to use?"
+
+    attribute, requested = next(iter(unsupported_attribute_filters.items()))
+    labels = _available_option_labels(attribute)
+    if labels:
+        return (
+            f"I can't find {requested} for {attribute}. "
+            f"Would you like to see other {attribute} options?"
+        )
+    return (
+        f"I can't filter by {attribute} on this storefront. "
+        f"Would you like me to continue without it?"
+    )
 
 
 def _is_present(value: Any) -> bool:
@@ -416,12 +596,8 @@ def _coerce_filter_values(value: Any) -> list[str]:
 
 
 def _normalize_filter_value(key: str, value: str) -> str:
-    normalized = value.strip()
-    if not normalized:
-        return normalized
-
-    alias_map = FILTER_VALUE_ALIASES.get(key, {})
-    return alias_map.get(normalized.lower(), normalized)
+    del key
+    return value.strip()
 
 
 def _parse_price_value(
@@ -441,7 +617,12 @@ def _parse_price_value(
     if "under" in price_text or "below" in price_text or "<" in price_text:
         return min_price, numbers[0]
 
-    if "above" in price_text or "over" in price_text or "more than" in price_text or ">" in price_text:
+    if (
+        "above" in price_text
+        or "over" in price_text
+        or "more than" in price_text
+        or ">" in price_text
+    ):
         return numbers[0], max_price
 
     if len(numbers) >= 2:
@@ -460,10 +641,7 @@ def _attribute_filter_clause(key: str, value: Any) -> dict[str, Any] | None:
     normalized_values: list[str] = []
     for item in values:
         normalized_item = _normalize_filter_value(key, item)
-        if key == "gender":
-            resolved_item = normalized_item
-        else:
-            resolved_item = _match_option_value(key, normalized_item)
+        resolved_item = _match_option_value(key, normalized_item)
         if resolved_item and resolved_item not in normalized_values:
             normalized_values.append(resolved_item)
     if not normalized_values:
@@ -496,27 +674,10 @@ def _build_filter(
             price_filter["to"] = _normalize_price(max_price)
         filter_input["price"] = price_filter
 
-    category_value = (attribute_filters or {}).get("category")
-    if _is_present(category_value):
-        category_values = _coerce_filter_values(category_value)
-        resolved_category_ids: list[str] = []
-        for item in category_values:
-            resolved_id = _resolve_category_id(item)
-            if resolved_id and resolved_id not in resolved_category_ids:
-                resolved_category_ids.append(resolved_id)
-        if resolved_category_ids:
-            if len(resolved_category_ids) == 1:
-                filter_input["category_id"] = {"eq": resolved_category_ids[0]}
-            else:
-                filter_input["category_id"] = {"in": resolved_category_ids}
-
-    for key in ATTRIBUTE_FILTER_KEYS:
-        if key == "category":
-            continue
-        raw_value = (attribute_filters or {}).get(key)
+    for key, raw_value in (attribute_filters or {}).items():
         clause = _attribute_filter_clause(key, raw_value)
         if clause is not None:
-            filter_input[key] = clause
+            filter_input[_canonical_attribute_key(key)] = clause
 
     return filter_input or None
 
@@ -551,9 +712,7 @@ def _strip_html(value: str | None) -> str:
 
 def _price_summary(product: dict[str, Any]) -> tuple[str, float | None]:
     regular_price = (
-        product.get("price_range", {})
-        .get("minimum_price", {})
-        .get("regular_price", {})
+        product.get("price_range", {}).get("minimum_price", {}).get("regular_price", {})
     )
     value = regular_price.get("value")
     currency = regular_price.get("currency", "")
@@ -582,9 +741,7 @@ def _description(product: dict[str, Any]) -> str:
 
 def _images(product: dict[str, Any]) -> list[str]:
     images = [
-        item.get("url")
-        for item in product.get("media_gallery", [])
-        if item.get("url")
+        item.get("url") for item in product.get("media_gallery", []) if item.get("url")
     ]
     if images:
         return images
@@ -685,17 +842,17 @@ def _pagination_command(
     name: str,
     attribute_filters: dict[str, Any],
 ) -> str:
-    parts = [f'PAGINATE_PRODUCTS page={page}', f'query="{query}"']
+    parts = [f"PAGINATE_PRODUCTS page={page}", f'query="{query}"']
     if _is_present(name):
-        parts.append(f'name={json.dumps(str(name), ensure_ascii=True)}')
+        parts.append(f"name={json.dumps(str(name), ensure_ascii=True)}")
     if min_price is not None:
         parts.append(f"min_price={_normalize_price(min_price)}")
     if max_price is not None:
         parts.append(f"max_price={_normalize_price(max_price)}")
-    for key in ATTRIBUTE_FILTER_KEYS:
-        value = attribute_filters.get(key)
-        if _is_present(value):
-            parts.append(f"{key}={json.dumps(str(value), ensure_ascii=True)}")
+    if attribute_filters:
+        parts.append(
+            f"attributes={json.dumps(attribute_filters, ensure_ascii=True, sort_keys=True)}"
+        )
     return " ".join(parts)
 
 
@@ -733,6 +890,62 @@ def _pagination_meta(
     return commands
 
 
+def _search_meta(
+    query: str,
+    name: str,
+    price: str,
+    min_price: float | None,
+    max_price: float | None,
+    page: int,
+    page_size: int,
+    attribute_filters: dict[str, Any],
+    unsupported_attribute_filters: dict[str, Any],
+) -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "query": query,
+        "name": name,
+        "price": price,
+        "minPrice": min_price,
+        "maxPrice": max_price,
+        "page": page,
+        "pageSize": page_size,
+    }
+    for key, value in attribute_filters.items():
+        if _is_present(value):
+            meta[key] = value
+    if unsupported_attribute_filters:
+        meta["unsupportedAttributes"] = unsupported_attribute_filters
+    return meta
+
+
+def _collect_attribute_filters(dynamic_filters: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(dynamic_filters, dict):
+        return {}
+
+    collected: dict[str, Any] = {}
+    for key, value in dynamic_filters.items():
+        normalized_key = str(key).strip()
+        if normalized_key and _is_present(value):
+            collected[normalized_key] = value
+    return collected
+
+
+def _split_attribute_filters(
+    attribute_filters: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    applied: dict[str, Any] = {}
+    unsupported: dict[str, Any] = {}
+
+    for key, value in attribute_filters.items():
+        clause = _attribute_filter_clause(key, value)
+        if clause is None:
+            unsupported[key] = value
+            continue
+        applied[key] = value
+
+    return applied, unsupported
+
+
 def _fetch_products(
     query: str = "",
     min_price: float | None = None,
@@ -767,25 +980,8 @@ def search_products(
     query: str = "",
     name: str = "",
     price: str = "",
-    category: str = "",
-    climate: str = "",
-    collar: str = "",
-    color: str = "",
-    eco_collection: str = "",
-    erin_recommends: str = "",
-    features_bags: str = "",
-    format: str = "",
-    gender: str = "",
-    material: str = "",
-    pattern: str = "",
-    performance_fabric: str = "",
-    sale: str = "",
-    size: str = "",
-    sleeve: str = "",
-    strap_bags: str = "",
-    style_bags: str = "",
-    style_bottom: str = "",
-    style_general: str = "",
+    attributes: dict[str, Any] | None = None,
+    user_request: str = "",
     min_price: float | None = None,
     max_price: float | None = None,
     page: int = 1,
@@ -797,36 +993,41 @@ def search_products(
         min_price=min_price,
         max_price=max_price,
     )
-    attribute_filters = {
-        "category": category,
-        "climate": climate,
-        "collar": collar,
-        "color": color,
-        "eco_collection": eco_collection,
-        "erin_recommends": erin_recommends,
-        "features_bags": features_bags,
-        "format": format,
-        "gender": gender,
-        "material": material,
-        "pattern": pattern,
-        "performance_fabric": performance_fabric,
-        "sale": sale,
-        "size": size,
-        "sleeve": sleeve,
-        "strap_bags": strap_bags,
-        "style_bags": style_bags,
-        "style_bottom": style_bottom,
-        "style_general": style_general,
-    }
-    active_attribute_filters = {
-        key: value for key, value in attribute_filters.items() if _is_present(value)
-    }
+    requested_attribute_filters = _collect_attribute_filters(attributes)
+    effective_page_size = page_size or settings.MAGENTO_PAGE_SIZE
+
+    resolved_query = query
+    active_attribute_filters, unsupported_attribute_filters = _split_attribute_filters(
+        requested_attribute_filters
+    )
+
+    if unsupported_attribute_filters:
+        return _build_validation_error(
+            message="Some requested filters are not available for this storefront.",
+            unsupported_attribute_filters=unsupported_attribute_filters,
+            question=_first_validation_question(unsupported_attribute_filters),
+            query=resolved_query,
+            name=name,
+            price=price,
+            min_price=resolved_min_price,
+            max_price=resolved_max_price,
+            page=page,
+            page_size=effective_page_size,
+            attribute_filters=active_attribute_filters,
+        )
+
+    resolved_query = _sanitize_search_query(
+        user_request=user_request,
+        query=resolved_query,
+        attribute_filters=active_attribute_filters,
+        name=name,
+    )
 
     logger.info(
         "[ToolCall] search_products params=%s",
         json.dumps(
             {
-                "query": query,
+                "query": resolved_query,
                 "name": name,
                 "price": price,
                 "min_price": resolved_min_price,
@@ -841,7 +1042,7 @@ def search_products(
     )
 
     payload = _fetch_products(
-        query=query,
+        query=resolved_query,
         min_price=resolved_min_price,
         max_price=resolved_max_price,
         page=page,
@@ -859,11 +1060,22 @@ def search_products(
         "pagination": pagination,
         "paginationCommands": _pagination_meta(
             pagination=pagination,
-            query=query,
+            query=resolved_query,
             min_price=resolved_min_price,
             max_price=resolved_max_price,
             name=name,
             attribute_filters=active_attribute_filters,
+        ),
+        "searchMeta": _search_meta(
+            query=resolved_query,
+            name=name,
+            price=price,
+            min_price=resolved_min_price,
+            max_price=resolved_max_price,
+            page=page,
+            page_size=effective_page_size,
+            attribute_filters=active_attribute_filters,
+            unsupported_attribute_filters={},
         ),
     }
 
@@ -895,9 +1107,8 @@ def get_product_by_slug(slug: str) -> dict[str, Any] | None:
     }
 
 
-def get_similar_products(product_type: str, exclude_slug: str = "") -> dict[str, Any]:
+def get_similar_products(product_type: str) -> dict[str, Any]:
     """Fallback keyword-based related products search."""
-    del exclude_slug
 
     keyword = product_type.replace("type:", "").strip()
     logger.info("[ToolCall] get_similar_products keyword=%r", keyword)

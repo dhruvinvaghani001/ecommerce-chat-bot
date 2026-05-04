@@ -21,12 +21,8 @@ class Settings:
     )
 
     CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
-    MAGENTO_STOREFRONT_URL: str = os.getenv(
-        "MAGENTO_STOREFRONT_URL", "https://magentodemo.ethnicinfotech.in"
-    )
-    MAGENTO_GRAPHQL_URL: str = os.getenv(
-        "MAGENTO_GRAPHQL_URL", "https://magentodemo.ethnicinfotech.in/graphql"
-    )
+    MAGENTO_STOREFRONT_URL: str = os.getenv("MAGENTO_STOREFRONT_URL", "")
+    MAGENTO_GRAPHQL_URL: str = os.getenv("MAGENTO_GRAPHQL_URL", "")
     MAGENTO_PAGE_SIZE: int = int(os.getenv("MAGENTO_PAGE_SIZE", "10"))
 
     HOST: str = os.getenv("HOST", "0.0.0.0")

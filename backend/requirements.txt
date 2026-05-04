@@ -1,6 +1,5 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
-websockets>=13.0
 python-dotenv>=1.0.0
 pydantic>=2.9.0
 
@@ -21,7 +20,5 @@ sentence-transformers>=3.0.0
 
 # Document processing
 pypdf>=5.0.0
-python-multipart>=0.0.12
 
 # Utilities
-uuid6>=2024.1.12

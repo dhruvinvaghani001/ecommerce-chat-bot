@@ -25,7 +25,7 @@ export function ChatWidget({ config }: Props) {
 
   const handleQuickReply = useCallback(
     (displayMessage: string, value: string) => {
-      sendMessage(value);
+      sendMessage(displayMessage, value);
     },
     [sendMessage]
   );

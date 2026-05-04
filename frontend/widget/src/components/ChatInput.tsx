@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent } from "react";
 import { SendIcon } from "./Icons";
 
 interface Props {
-  onSend: (message: string) => void;
+  onSend: (message: string, requestMessage?: string) => void;
   disabled: boolean;
 }
 

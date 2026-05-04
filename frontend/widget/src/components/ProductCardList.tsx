@@ -74,7 +74,7 @@ export function ProductCardList({ data, onQuickReply }: Props) {
             className="ecw-pagination-btn"
             onClick={() =>
               paginationCommands.previous &&
-              onQuickReply("Previous page", paginationCommands.previous)
+              onQuickReply("Fetching previous products...", paginationCommands.previous)
             }
             disabled={!paginationCommands.previous}
           >
@@ -90,7 +90,7 @@ export function ProductCardList({ data, onQuickReply }: Props) {
             className="ecw-pagination-btn"
             onClick={() =>
               paginationCommands.next &&
-              onQuickReply("Next page", paginationCommands.next)
+              onQuickReply("Fetching more products...", paginationCommands.next)
             }
             disabled={!paginationCommands.next}
           >

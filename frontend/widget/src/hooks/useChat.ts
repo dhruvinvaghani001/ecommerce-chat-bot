@@ -11,7 +11,8 @@ export function useChat(apiUrl: string) {
   const [threadId, setThreadId] = useState<string>("");
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, requestContent?: string) => {
+      const payload = requestContent ?? content;
       const userMsg: ChatMessage = {
         id: generateId(),
         role: "user",
@@ -27,7 +28,7 @@ export function useChat(apiUrl: string) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            content,
+            content: payload,
             thread_id: threadId || undefined,
           }),
         });
